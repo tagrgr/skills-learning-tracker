@@ -98,3 +98,27 @@ function getMinutesByDate(sessions) {
 initialData().then(function (data) {
     console.log(getMinutesByDate(data.sessions));
 });
+
+// INITIALLY THE SESSION DATES WOULD END UP BY THE 19/03 AND TODAY IS JULY THE 28TH. SO MY HEATMAP WOULD SHOULD 4 EMPTY MONTHS, THIS FUNCTION SLIDES EVERYTHING FORWARD
+function shiftDatesToToday(data) {
+    const dates = getUniqueDates(getPracticeDates(data.sessions));
+    const latest = dates[0];
+
+    const today = new Date().toISOString().slice(0, 10);
+    const offset = new Date(today) - new Date(latest);
+
+    for (let i = 0; i < data.sessions.length; i++) {
+        const session = data.sessions[i];
+        const shifted = new Date(session.date).getTime() + offset;
+        session.date = new Date(shifted).toISOString().slice(0, 10);
+    }
+
+    return data;
+}
+
+initialData().then(function (data) {
+    const spanishSessions = getSessionsBySkill(data.sessions, "skill-1");
+    const dates = getUniqueDates(getPracticeDates(spanishSessions));
+    console.log(dates[0]);
+    console.log(getStreak(dates));
+});
