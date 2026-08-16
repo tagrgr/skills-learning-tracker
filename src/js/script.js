@@ -130,8 +130,8 @@ function renderSkills(data) {
         `
         <div class="skill-card">
             <h3 class="skill-name">${skill.name}</h3>
-            <p><span>${hours}h</span>Total hours</p>
-            <p><span>${streak}</span>Day streak</p>
+            <p class="skill-stat"><span class="skill-value">${hours}h</span>Total hours</p>
+            <p class="skill-stat"><span class="skill-value">${streak}</span>Day streak</p>
         </div>
         `;
     }

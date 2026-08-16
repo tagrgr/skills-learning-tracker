@@ -16,3 +16,27 @@ body {
     border-radius: var(--radius-lg);
     padding: var(--space-6);
 }
+
+.skills-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+}
+
+.skill-name {
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+    font-weight: var(--font-medium);
+}
+
+.skill-stat {
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+}
+
+.skill-value {
+    display: block;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-primary);
+}
