@@ -22,6 +22,7 @@ async function initialData() {
     if (data === null) {
         const response = await fetch("./data/sample-skills.json");
         data = await response.json();
+        data = shiftDatesToToday(data);
         saveData(data);
     }
 
@@ -65,10 +66,10 @@ function getStreak(dates) {
     let streak = 1;
 
     for (let i = 0; i < dates.length - 1; i++) {
-        const today = new Date(dates[i]);
-        const yesterday = new Date(dates[i + 1]);
+        const current = new Date(dates[i]);
+        const previous = new Date(dates[i + 1]);
 
-        if (today - yesterday === ONE_DAY_MS) {
+        if (current - previous === ONE_DAY_MS) {
             streak = streak + 1;
         } else {
             break;
@@ -95,10 +96,6 @@ function getMinutesByDate(sessions) {
     return totals;
 }
 
-initialData().then(function (data) {
-    console.log(getMinutesByDate(data.sessions));
-});
-
 // INITIALLY THE SESSION DATES WOULD END UP BY THE 19/03 AND TODAY IS JULY THE 28TH. SO MY HEATMAP WOULD SHOULD 4 EMPTY MONTHS, THIS FUNCTION SLIDES EVERYTHING FORWARD
 function shiftDatesToToday(data) {
     const dates = getUniqueDates(getPracticeDates(data.sessions));
@@ -116,9 +113,32 @@ function shiftDatesToToday(data) {
     return data;
 }
 
+// STEP 4 - RENDERING
+function renderSkills(data) {
+    const grid = document.querySelector(".skills-grid");
+    let html = "";
+
+    for (let i = 0; i < data.skills.length; i++) {
+        const skill = data.skills[i];
+        const skillSessions = getSessionsBySkill(data.sessions, skill.id);
+        const minutes = getTotalMinutes(skillSessions);
+        const dates = getUniqueDates(getPracticeDates(skillSessions));
+        const streak = getStreak(dates);
+        const hours = (minutes / 60).toFixed(1);
+
+        html = html + 
+        `
+        <div class="skill-card">
+            <h3 class="skill-name">${skill.name}</h3>
+            <p><span>${hours}h</span>Total hours</p>
+            <p><span>${streak}</span>Day streak</p>
+        </div>
+        `;
+    }
+
+    grid.innerHTML = html;
+}
+
 initialData().then(function (data) {
-    const spanishSessions = getSessionsBySkill(data.sessions, "skill-1");
-    const dates = getUniqueDates(getPracticeDates(spanishSessions));
-    console.log(dates[0]);
-    console.log(getStreak(dates));
+    renderSkills(data);
 });
