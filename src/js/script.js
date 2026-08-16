@@ -1,7 +1,7 @@
 const STORAGE_KEY = "skilltrack-data";
 const ONE_DAY_MS = 86400000;
 
-// STEP 1 - LOAD SAMPLE-SKILLS.JSON, SAVE AND READ FROM LOCALSTORAGE.
+// DATA LAYER - LOAD SAMPLE-SKILLS.JSON, SAVE AND READ FROM LOCALSTORAGE.
 function saveData(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -29,7 +29,7 @@ async function initialData() {
     return data;
 }
 
-// STEP 2 - THE PURE LOGIC. STREAK CALCS, TOTAL HOURS, AND DAILY HEATMAP. 
+// CALCULATIONS - THE PURE LOGIC. STREAK CALCS, TOTAL HOURS, AND DAILY HEATMAP. 
 function getSessionsBySkill(sessions, skillId) {
     return sessions.filter(function(session) {
         return session.skillId === skillId;
@@ -113,7 +113,7 @@ function shiftDatesToToday(data) {
     return data;
 }
 
-// STEP 4 - RENDERING
+// RENDERING
 function renderSkills(data) {
     const grid = document.querySelector(".skills-grid");
     let html = "";
@@ -139,6 +139,66 @@ function renderSkills(data) {
     grid.innerHTML = html;
 }
 
+// HEATMAP - ONE SQUARE PER DAY, COLORED BY MINUTES PRACTICED.
+function renderHeatmap() {
+    const heatMapping = document.querySelector(".heatmap");
+    let html = "";
+
+    for (let i = 0; i < 126; i++) {
+        html = html + `<div class="heatmap-day"></div>`;
+    }
+
+    heatMapping.innerHTML = html;
+}
+
+// MAKING SQUARES KNOW WHICH DAY IT REPRESENTS.
+function getHeatmapDates(days) {
+    const dates = [];
+    const today = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today.getTime() - i * ONE_DAY_MS);
+        dates.push(date.toISOString().slice(0, 10));
+    }
+
+    return dates;
+}
+
+function getHeatmapLevel(minutes) {
+    if (minutes === undefined || minutes === 0) {
+        return "empty";
+    } else if (minutes < 30) {
+        return "light";
+    } else if (minutes >= 30 && minutes < 60) {
+        return "medium";
+    } else {
+        return "heavy";
+    }
+}
+
+function renderHeatmap(data) {
+    const heatmap = document.querySelector(".heatmap");
+    const dates = getHeatmapDates(126);
+    const minutesByDate = getMinutesByDate(data.sessions);
+    let html = "";
+
+    for (let i = 0; i < dates.length; i++) {
+        const date = dates[i];
+        const minutes = minutesByDate[date];
+        const level = getHeatmapLevel(minutes);
+
+        html = html + `<div class="heatmap-day heatmap-${level}"></div>`;
+    }
+
+    heatmap.innerHTML = html;
+}
+
+
+
+
+
+
 initialData().then(function (data) {
     renderSkills(data);
+    renderHeatmap(data);
 });
