@@ -11,13 +11,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+    <link rel="icon" href="./images/logo.svg" type="image/svg+xml">
 
     <script defer src="./src/js/script.js"></script>
 </head>
 <body>
+    <header id="head">
+        <div class="left-head">
+            <a class="logo" href="#">
+                <img src="/images/logo.svg" alt="SkillTrack logo">
+            </a>
+            <h1 class="branding">SkillTrack</h1>
+        </div>
+        
+        <div class="right-head">
+            <button class="btn-primary" type="button">+ Log Session</button>
+            <a class="avatar" href="#">TG</a>
+        </div>
+    </header>
 
     <main id="container">
-
         <ul class="skills-grid"></ul>
 
         <section class="heatmap-panel card">
@@ -25,16 +38,18 @@
                 <h2>Practice Activity</h2>
                 <span>Last 18 weeks</span>    
             </header>
+            
             <div class="heatmap"></div>
 
             <footer class="heatmap-legend">
                 <span>Less</span>
-                ... os quatro quadrados ...
+                <div class="legend-swatch heatmap-empty"></div>
+                <div class="legend-swatch heatmap-light"></div>
+                <div class="legend-swatch heatmap-medium"></div>
+                <div class="legend-swatch heatmap-heavy"></div>
                 <span>More</span>
             </footer>
         </section>
-
     </main>
-
 </body>
 </html>

@@ -4,6 +4,53 @@ body {
     font-family: var(--font-body);
 }
 
+#head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: var(--topbar-height);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 var(--space-6);
+}
+
+.left-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.branding {
+    font-family: var(--font-heading);
+    font-size: var(--text-x1);
+}
+
+.right-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.btn-primary {
+    background-color: var(--color-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    padding: var(--space-2) var(--space-4);
+    font-family: inherit;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-bg-tertiary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: var(--text-sm);
+}
+
 #container {
     max-width: var(--content-max-width);
     padding: var(--space-6);
