@@ -10,12 +10,12 @@ body {
     margin: 0 auto;
 }
 
-.skill-card {
+/* .skill-card {
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     padding: var(--space-6);
-}
+} */
 
 .skills-grid {
     display: grid;
@@ -50,8 +50,8 @@ body {
 }
 
 .heatmap-day {
-    width: 14px;
-    height: 14px;
+    width: 28px;
+    height: 28px;
     /* background-color: var(--color-heatmap-empty); */
     border-radius: var(--radius-sm);
 }
@@ -70,4 +70,18 @@ body {
 
 .heatmap-heavy  { 
     background-color: var(--color-heatmap-heavy); 
+}
+
+.card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+}
+
+.heatmap-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
 }

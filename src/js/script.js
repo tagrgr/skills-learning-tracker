@@ -128,11 +128,11 @@ function renderSkills(data) {
 
         html = html + 
         `
-        <div class="skill-card">
+        <li class="skill-card card">
             <h3 class="skill-name">${skill.name}</h3>
             <p class="skill-stat"><span class="skill-value">${hours}h</span>Total hours</p>
             <p class="skill-stat"><span class="skill-value">${streak}</span>Day streak</p>
-        </div>
+        </li>
         `;
     }
 
@@ -192,9 +192,6 @@ function renderHeatmap(data) {
 
     heatmap.innerHTML = html;
 }
-
-
-
 
 
 
