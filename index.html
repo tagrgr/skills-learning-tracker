@@ -17,39 +17,68 @@
 </head>
 <body>
     <header id="head">
-        <div class="left-head">
-            <a class="logo" href="#">
-                <img src="/images/logo.svg" alt="SkillTrack logo">
-            </a>
-            <h1 class="branding">SkillTrack</h1>
-        </div>
-        
-        <div class="right-head">
-            <button class="btn-primary" type="button">+ Log Session</button>
-            <a class="avatar" href="#">TG</a>
+        <div class="wrapper head-inner">
+            <div class="left-head">
+                <a class="logo" href="#">
+                    <img src="./images/logo.svg" alt="SkillTrack logo">
+                </a>
+                <h1 class="branding">SkillTrack</h1>
+            </div>
+            
+            <div class="right-head">
+                <button class="btn-primary" type="button">+ Log Session</button>
+                <a class="avatar" href="#">TG</a>
+            </div>
         </div>
     </header>
 
-    <main id="container">
-        <ul class="skills-grid"></ul>
-
-        <section class="heatmap-panel card">
-            <header class="heatmap-head">
-                <h2>Practice Activity</h2>
-                <span>Last 18 weeks</span>    
-            </header>
-            
-            <div class="heatmap"></div>
-
-            <footer class="heatmap-legend">
-                <span>Less</span>
-                <div class="legend-swatch heatmap-empty"></div>
-                <div class="legend-swatch heatmap-light"></div>
-                <div class="legend-swatch heatmap-medium"></div>
-                <div class="legend-swatch heatmap-heavy"></div>
-                <span>More</span>
-            </footer>
+    <main id="container" class="wrapper">
+        <section class="greeting">
+            <h2 class="greeting-title">Good afternoon, Jordan</h2>
+            <p class="greeting-sub">You've practiced 3 skills today. Keep it up!</p>
         </section>
+
+        <div class="dashboard">
+            <section class="featured card">
+                <p class="featured-label">Most practiced</p>
+                <h2 class="featured-name">Spanish</h2>
+                
+                <div class="ring"></div>
+                
+                <div class="featured-stats">
+                    <div class="stat-box">
+                        <span class="skill-value">47.5h</span>
+                        <span class="skill-stat">Total hours</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="skill-value">🔥 12</span>
+                        <span class="skill-stat">Day streak</span>
+                    </div>
+                </div>
+
+                <p class="featured-last">Last session: Yesterday — 45 min</p>
+            </section>
+            
+            <ul class="skills-grid"></ul>
+
+            <section class="heatmap-panel card">
+                <header class="heatmap-head">
+                    <h2>Practice Activity</h2>
+                    <span>Last 18 weeks</span>    
+                </header>
+                
+                <div class="heatmap"></div>
+
+                <footer class="heatmap-legend">
+                    <span>Less</span>
+                    <div class="legend-swatch heatmap-empty"></div>
+                    <div class="legend-swatch heatmap-light"></div>
+                    <div class="legend-swatch heatmap-medium"></div>
+                    <div class="legend-swatch heatmap-heavy"></div>
+                    <span>More</span>
+                </footer>
+            </section>
+        </div>
     </main>
 </body>
 </html>
