@@ -113,13 +113,26 @@ function shiftDatesToToday(data) {
     return data;
 }
 
+// SORTS SKILLS FROM MOST TO LEAST PRACTICED — THE FIRST FILLS THE FEATURED CARD, THE NEXT THREE FILL THE GRID.
+function getSkillsByPractice(data) {
+    const skills = data.skills.slice();
+
+    skills.sort(function (a, b) {
+        const aMinutes = getTotalMinutes(getSessionsBySkill(data.sessions, a.id));
+        const bMinutes = getTotalMinutes(getSessionsBySkill(data.sessions, b.id));
+        return bMinutes - aMinutes;
+    });
+
+    return skills;
+}
+
 // RENDERING
-function renderSkills(data) {
+function renderSkills(data, skills) {
     const grid = document.querySelector(".skills-grid");
     let html = "";
 
-    for (let i = 0; i < data.skills.length; i++) {
-        const skill = data.skills[i];
+    for (let i = 0; i < skills.length; i++) {
+        const skill = skills[i];
         const skillSessions = getSessionsBySkill(data.sessions, skill.id);
         const minutes = getTotalMinutes(skillSessions);
         const dates = getUniqueDates(getPracticeDates(skillSessions));
@@ -130,8 +143,8 @@ function renderSkills(data) {
         `
         <li class="skill-card card">
             <h3 class="skill-name">${skill.name}</h3>
-            <p class="skill-stat"><span class="skill-value">${hours}h</span>Total hours</p>
-            <p class="skill-stat"><span class="skill-value">${streak}</span>Day streak</p>
+            <p class="skill-stat"><span class="skill-value">${hours}h</span></p>
+            <p class="skill-stat">🔥 ${streak}-day streak</p>
         </li>
         `;
     }
@@ -193,9 +206,10 @@ function renderHeatmap(data) {
     heatmap.innerHTML = html;
 }
 
-
-
 initialData().then(function (data) {
-    renderSkills(data);
+    const sorted = getSkillsByPractice(data);
+    const others = sorted.slice(1, 4);
+
+    renderSkills(data, others);
     renderHeatmap(data);
 });
