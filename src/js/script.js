@@ -335,6 +335,23 @@ function countSkillsPracticedToday(sessions) {
     return new Set(skillIds).size;
 }
 
+// READS THE USER'S NAME, ASKING FOR IT ON THE FIRST VISIT. KEPT UNDER ITS OWN KEY SO CLEARING THE PRACTICE DATA DOESN'T WIPE IT.
+function getUserName() {
+    let name = localStorage.getItem(NAME_KEY);
+
+    if (name === null || name === "") {
+        name = prompt("What's your name?");
+
+        if (name === null || name === "") {
+            name = "there";
+        }
+
+        localStorage.setItem(NAME_KEY, name);
+    }
+
+    return name;
+}
+
 // FILLS THE GREETING LINE. CHANGES WITH THE TIME OF DAY AND WITH TODAY'S ACTIVITY, SO THE PAGE READS DIFFERENTLY ON EACH VISIT.
 function renderGreeting(data) {
     const name = getUserName();
