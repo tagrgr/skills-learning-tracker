@@ -1,6 +1,7 @@
 const STORAGE_KEY = "skilltrack-data";
 const ONE_DAY_MS = 86400000;
 const RING_CIRCUMFERENCE = 327;
+const NAME_KEY = "skilltrack-name";
 
 // DATA LAYER - LOAD SAMPLE-SKILLS.JSON, SAVE AND READ FROM LOCALSTORAGE.
 function saveData(data) {
@@ -213,7 +214,7 @@ function renderHeatmap(data) {
     heatmap.innerHTML = html;
 }
 
-// FILLS THE FEATURED CARD WITH THE MOST PRACTISED SKILL. UNLIKE RENDERSKILLS, THIS ONE DOESN'T BUILD HTML — THE CARD ALREADY EXISTS IN THE PAGE WITH ITS SVG RING, SO ONLY THE TEXT VALUES GET REPLACED.
+// FILLS THE FEATURED CARD WITH THE MOST PRACTISED SKILL. UNLIKE RENDERSKILLS, THIS ONE DOESN'T BUILD HTML — THE CARD ALREADY EXISTS IN THE PAGE WITH ITS SVG RING, SO IT ONLY UPDATES THE VALUES INSIDE IT.
 function renderFeatured(data, skill) {
     const sessions = getSessionsBySkill(data.sessions, skill.id);
     const minutes = getTotalMinutes(sessions);
@@ -234,6 +235,15 @@ function renderFeatured(data, skill) {
     } else {
         ringText.textContent = percent + "%";
         ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE - (RING_CIRCUMFERENCE * percent / 100);
+    }
+
+    const last = getLastSession(sessions);
+
+    if (last === null) {
+        document.querySelector(".featured-last").textContent = "No sessions yet";
+    } else {
+        document.querySelector(".featured-last").textContent =
+            "Last session: " + formatRelativeDate(last.date) + " — " + last.durationMinutes + " min";
     }
 }
 
@@ -268,591 +278,100 @@ function getGoalProgress(data, skill) {
     return Math.min(percent, 100);
 }
 
+// RETURNS THE MOST RECENT SESSION OF A SKILL, OR NULL WHEN THERE ARE NONE. COPIES THE LIST BEFORE SORTING SO THE ORDER INSIDE DATA IS NEVER TOUCHED.
+function getLastSession(sessions) {
+    if (sessions.length === 0) {
+        return null;
+    }
+
+    const sorted = sessions.slice();
+
+    sorted.sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+    });
+
+    return sorted[0];
+}
+
+// TURNS A DATE INTO FRIENDLY TEXT — "TODAY", "YESTERDAY", "5 DAYS AGO". PEOPLE READ RECENCY FASTER THAN THEY READ A CALENDAR DATE.
+function formatRelativeDate(date) {
+    const today = new Date().toISOString().slice(0, 10);
+    const diff = (new Date(today) - new Date(date)) / ONE_DAY_MS;
+
+    if (diff === 0) {
+        return "Today";
+    } else if (diff === 1) {
+        return "Yesterday";
+    } else {
+        return diff + " days ago";
+    }
+}
+
+// PICKS THE GREETING FROM THE CLOCK. THE CUT-OFFS ARE ARBITRARY BUT MATCH WHAT MOST APPS DO.
+function getGreeting() {
+    const hour = new Date().getHours();
+
+    if (hour < 12) {
+        return "Good morning";
+    } else if (hour < 18) {
+        return "Good afternoon";
+    } else {
+        return "Good evening";
+    }
+}
+
+// COUNTS HOW MANY DIFFERENT SKILLS WERE PRACTISED TODAY. USES A SET SO TWO SESSIONS OF THE SAME SKILL ONLY COUNT ONCE.
+function countSkillsPracticedToday(sessions) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const todaySessions = sessions.filter(function (session) {
+        return session.date === today;
+    });
+
+    const skillIds = todaySessions.map(function (session) {
+        return session.skillId;
+    });
+
+    return new Set(skillIds).size;
+}
+
+// FILLS THE GREETING LINE. CHANGES WITH THE TIME OF DAY AND WITH TODAY'S ACTIVITY, SO THE PAGE READS DIFFERENTLY ON EACH VISIT.
+function renderGreeting(data) {
+    const name = getUserName();
+    const count = countSkillsPracticedToday(data.sessions);
+    const sub = document.querySelector(".greeting-sub");
+
+    document.querySelector(".greeting-title").textContent = getGreeting() + ", " + name;
+    document.querySelector(".avatar").textContent = getInitials(name);
+
+    if (count === 0) {
+        sub.textContent = "No practice logged today. Ready to start?";
+    } else if (count === 1) {
+        sub.textContent = "You've practiced 1 skill today. Keep it up!";
+    } else {
+        sub.textContent = "You've practiced " + count + " skills today. Keep it up!";
+    }
+}
+
+// TURNS A NAME INTO UP TO TWO INITIALS FOR THE AVATAR. "TIAGO GREGORI" BECOMES "TG"; A SINGLE NAME GIVES JUST ITS FIRST LETTER.
+function getInitials(name) {
+    const parts = name.trim().split(" ");
+    let initials = parts[0].charAt(0);
+
+    if (parts.length > 1) {
+        initials = initials + parts[parts.length - 1].charAt(0);
+    }
+
+    return initials.toUpperCase();
+}
 
 // ENTRY POINT — RUNS ONCE THE DATA IS READY. SLICE(1, 4) SKIPS THE MOST PRACTISED SKILL, WHICH BELONGS TO THE FEATURED CARD, AND TAKES THE NEXT THREE FOR THE GRID.
 initialData().then(function (data) {
     const sorted = getSkillsByPractice(data);
     const others = sorted.slice(1, 4);
 
+    renderGreeting(data);
     renderFeatured(data, sorted[0]);
     renderSkills(data, others);
     renderHeatmap(data);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
