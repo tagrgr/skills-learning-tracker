@@ -1,5 +1,6 @@
 const STORAGE_KEY = "skilltrack-data";
 const ONE_DAY_MS = 86400000;
+const RING_CIRCUMFERENCE = 327;
 
 // DATA LAYER - LOAD SAMPLE-SKILLS.JSON, SAVE AND READ FROM LOCALSTORAGE.
 function saveData(data) {
@@ -212,11 +213,68 @@ function renderHeatmap(data) {
     heatmap.innerHTML = html;
 }
 
+// FILLS THE FEATURED CARD WITH THE MOST PRACTISED SKILL. UNLIKE RENDERSKILLS, THIS ONE DOESN'T BUILD HTML — THE CARD ALREADY EXISTS IN THE PAGE WITH ITS SVG RING, SO ONLY THE TEXT VALUES GET REPLACED.
+function renderFeatured(data, skill) {
+    const sessions = getSessionsBySkill(data.sessions, skill.id);
+    const minutes = getTotalMinutes(sessions);
+    const dates = getUniqueDates(getPracticeDates(sessions));
+    const streak = getStreak(dates);
+
+    document.querySelector(".featured-name").textContent = skill.name;
+    document.querySelector(".featured-hours").textContent = (minutes / 60).toFixed(1) + "h";
+    document.querySelector(".featured-streak").textContent = "🔥 " + streak;
+
+    const percent = getGoalProgress(data, skill);
+    const ringText = document.querySelector(".ring-percent");
+    const ringProgress = document.querySelector(".ring-progress");
+
+    if (percent === null) {
+        ringText.textContent = "—";
+        ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE;
+    } else {
+        ringText.textContent = percent + "%";
+        ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE - (RING_CIRCUMFERENCE * percent / 100);
+    }
+}
+
+// SUMS THE MINUTES PRACTISED IN THE LAST N DAYS. REUSES GETHEATMAPDATES TO BUILD THE LIST OF DATES THAT COUNT, SO THE WINDOW ALWAYS ENDS ON TODAY.
+function getMinutesInLastDays(sessions, days) {
+    const recentDates = getHeatmapDates(days);
+
+    const recentSessions = sessions.filter(function (session) {
+        return recentDates.includes(session.date);
+    });
+
+    return getTotalMinutes(recentSessions);
+}
+
+// HOW FAR A SKILL IS TOWARDS ITS GOAL, AS A PERCENTAGE. RETURNS NULL WHEN THE SKILL HAS NO GOAL — THE CALLER DECIDES WHAT TO SHOW. WEEKLY GOALS ONLY COUNT THE LAST 7 DAYS, TOTAL GOALS COUNT EVERYTHING. CAPPED AT 100 SO THE RING NEVER LOOPS TWICE.
+function getGoalProgress(data, skill) {
+    if (skill.goal === null) {
+        return null;
+    }
+
+    const sessions = getSessionsBySkill(data.sessions, skill.id);
+    const targetMinutes = skill.goal.targetHours * 60;
+    let minutes;
+
+    if (skill.goal.type === "weekly") {
+        minutes = getMinutesInLastDays(sessions, 7);
+    } else {
+        minutes = getTotalMinutes(sessions);
+    }
+
+    const percent = Math.round((minutes / targetMinutes) * 100);
+    return Math.min(percent, 100);
+}
+
+
 // ENTRY POINT — RUNS ONCE THE DATA IS READY. SLICE(1, 4) SKIPS THE MOST PRACTISED SKILL, WHICH BELONGS TO THE FEATURED CARD, AND TAKES THE NEXT THREE FOR THE GRID.
 initialData().then(function (data) {
     const sorted = getSkillsByPractice(data);
     const others = sorted.slice(1, 4);
 
+    renderFeatured(data, sorted[0]);
     renderSkills(data, others);
     renderHeatmap(data);
 });
