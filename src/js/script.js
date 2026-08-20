@@ -6,6 +6,7 @@ function saveData(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+// READS THE SAVED DATA BACK FROM LOCALSTORAGE. RETURNS NULL WHEN NOTHING WAS EVER SAVED — THAT'S HOW INITIALDATA KNOWS IT'S A FIRST VISIT.
 function loadData() {
     const stored = localStorage.getItem(STORAGE_KEY);
 
@@ -16,6 +17,7 @@ function loadData() {
     }
 }
 
+// RETURNS THE APP DATA, SEEDING IT ON THE FIRST VISIT. AFTER THAT THE JSON IS NEVER READ AGAIN — EVERYTHING COMES FROM LOCALSTORAGE, SO THE USER'S OWN CHANGES ARE NEVER OVERWRITTEN.
 async function initialData() {
     let data = loadData();
 
@@ -36,6 +38,7 @@ function getSessionsBySkill(sessions, skillId) {
     });
 }
 
+// SUMS THE DURATION OF EVERY SESSION IN THE LIST. RETURNS MINUTES, NOT HOURS — THE CONVERSION IS DONE WHEN DISPLAYING, SO THE CALCULATION STAYS EXACT.
 function getTotalMinutes(sessions) {
     const initialValue = 0;
 
@@ -127,6 +130,7 @@ function getSkillsByPractice(data) {
 }
 
 // RENDERING
+// DRAWS THE SKILL CARDS INTO THE GRID. THE LIST TO DRAW COMES AS A SEPARATE ARGUMENT, NOT FROM DATA.SKILLS — THAT'S WHAT LETS THE CALLER LEAVE OUT THE FEATURED SKILL INSTEAD OF ALWAYS SHOWING ALL SIX.
 function renderSkills(data, skills) {
     const grid = document.querySelector(".skills-grid");
     let html = "";
@@ -177,6 +181,7 @@ function getHeatmapDates(days) {
     return dates;
 }
 
+// TURNS A DAY'S MINUTES INTO A COLOUR LEVEL. THE WORD RETURNED BECOMES A CSS CLASS (HEATMAP-LIGHT, HEATMAP-HEAVY...). UNDEFINED MEANS THE DAY HAS NO SESSIONS AT ALL, BECAUSE GETMINUTESBYDATE ONLY CREATES KEYS FOR DAYS THAT WERE PRACTISED.
 function getHeatmapLevel(minutes) {
     if (minutes === undefined || minutes === 0) {
         return "empty";
@@ -189,6 +194,7 @@ function getHeatmapLevel(minutes) {
     }
 }
 
+// DRAWS 126 SQUARES — 18 WEEKS OF 7 DAYS — FROM THE OLDEST DATE UP TO TODAY. THE CSS GRID FILLS THEM COLUMN BY COLUMN, SO EACH COLUMN COMES OUT AS ONE WEEK.
 function renderHeatmap(data) {
     const heatmap = document.querySelector(".heatmap");
     const dates = getHeatmapDates(126);
@@ -206,6 +212,7 @@ function renderHeatmap(data) {
     heatmap.innerHTML = html;
 }
 
+// ENTRY POINT — RUNS ONCE THE DATA IS READY. SLICE(1, 4) SKIPS THE MOST PRACTISED SKILL, WHICH BELONGS TO THE FEATURED CARD, AND TAKES THE NEXT THREE FOR THE GRID.
 initialData().then(function (data) {
     const sorted = getSkillsByPractice(data);
     const others = sorted.slice(1, 4);
