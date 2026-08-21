@@ -267,3 +267,132 @@ body {
     font-size: var(--text-xs);
     color: var(--color-text-tertiary);
 }
+
+#log-dialog {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    width: min(420px, 90vw);
+}
+
+#log-dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.log-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.log-title {
+    font-family: var(--font-heading);
+    font-size: var(--text-xl);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.field-label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.field-input {
+    font-family: inherit;
+    font-size: var(--text-base);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+}
+
+.field-input:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+}
+
+.log-error {
+    font-size: var(--text-sm);
+    color: var(--color-error);
+}
+
+.log-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+}
+
+.btn-ghost {
+    font-family: inherit;
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-4);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+
+.sessions-panel {
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-20);
+}
+
+.sessions-title {
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-2);
+}
+
+.session-row {
+    display: grid;
+    grid-template-columns: auto 120px 1fr auto auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.session-row:last-child {
+    border-bottom: none;
+}
+
+.dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+}
+
+.skill-name .dot {
+    margin-right: var(--space-1);
+}
+
+.session-skill {
+    font-weight: var(--font-medium);
+}
+
+.session-notes {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session-duration {
+    font-weight: var(--font-semibold);
+}
+
+.session-date {
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    min-width: 90px;
+    text-align: right;
+}

@@ -148,7 +148,10 @@ function renderSkills(data, skills) {
         html = html + 
         `
         <li class="skill-card card">
-            <h3 class="skill-name">${skill.name}</h3>
+            <h3 class="skill-name">
+                <span class="dot" style="background-color: ${skill.color}"></span>
+                ${skill.name}
+            </h3>
             <p class="skill-stat"><span class="skill-value">${hours}h</span></p>
             <p class="skill-stat">🔥 ${streak}-day streak</p>
         </li>
@@ -243,7 +246,7 @@ function renderFeatured(data, skill) {
         document.querySelector(".featured-last").textContent = "No sessions yet";
     } else {
         document.querySelector(".featured-last").textContent =
-            "Last session: " + formatRelativeDate(last.date) + " — " + last.durationMinutes + " min";
+            "Last session: " + formatRelativeDate(last.date) + " — " + formatDuration(last.durationMinutes);
     }
 }
 
@@ -382,13 +385,189 @@ function getInitials(name) {
     return initials.toUpperCase();
 }
 
-// ENTRY POINT — RUNS ONCE THE DATA IS READY. SLICE(1, 4) SKIPS THE MOST PRACTISED SKILL, WHICH BELONGS TO THE FEATURED CARD, AND TAKES THE NEXT THREE FOR THE GRID.
-initialData().then(function (data) {
-    const sorted = getSkillsByPractice(data);
-    const others = sorted.slice(1, 4);
+// FILLS THE SKILL DROPDOWN AND WIRES THE DIALOG: OPENING, CANCELLING AND SAVING. RUNS ONCE — EVENT LISTENERS ONLY NEED REGISTERING A SINGLE TIME.
+function setupLogDialog(data) {
+    const dialog = document.querySelector("#log-dialog");
+    const select = document.querySelector("#log-skill");
+    let options = "";
 
+    for (let i = 0; i < data.skills.length; i++) {
+        const skill = data.skills[i];
+        options = options + `<option value="${skill.id}">${skill.name}</option>`;
+    }
+
+    select.innerHTML = options;
+
+    document.querySelector("#log-open").addEventListener("click", function () {
+        document.querySelector("#log-date").value = new Date().toISOString().slice(0, 10);
+        dialog.showModal();
+    });
+
+    document.querySelector("#log-cancel").addEventListener("click", function () {
+        dialog.close();
+    });
+
+    const form = document.querySelector(".log-form");
+    const error = document.querySelector(".log-error");
+
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const minutes = parseDuration(document.querySelector("#log-duration").value);
+        const date = document.querySelector("#log-date").value;
+        const today = new Date().toISOString().slice(0, 10);
+
+        if (minutes === null || minutes < 1) {
+            error.textContent = "Enter a duration like 45, 1h 30m or 1.5";
+            error.hidden = false;
+            return;
+        }
+
+        if (date > today) {
+            error.textContent = "You can't log a session in the future.";
+            error.hidden = false;
+            return;
+        }
+
+        let notes = document.querySelector("#log-notes").value.trim();
+
+        if (notes === "") {
+            notes = null;
+        }
+
+        data.sessions.push({
+            id: "s-" + Date.now(),
+            skillId: document.querySelector("#log-skill").value,
+            durationMinutes: minutes,
+            date: date,
+            notes: notes,
+            createdAt: new Date().toISOString()
+        });
+
+        error.hidden = true;
+        saveData(data);
+        renderAll(data);
+        form.reset();
+        dialog.close();
+    });
+}
+
+// TURNS WHAT THE USER TYPED INTO MINUTES. ACCEPTS "45", "1H 30M" AND "1.5". A DECIMAL MEANS HOURS, A WHOLE NUMBER MEANS MINUTES. RETURNS NULL WHEN THE TEXT MAKES NO SENSE, SO THE CALLER CAN SHOW AN ERROR.
+function parseDuration(text) {
+    const clean = text.trim().toLowerCase();
+
+    if (clean === "") {
+        return null;
+    }
+
+    if (clean.includes("h")) {
+        const parts = clean.split("h");
+        const hours = Number(parts[0]);
+        const rest = parts[1].replace("m", "").trim();
+        let minutes = 0;
+
+        if (rest !== "") {
+            minutes = Number(rest);
+        }
+        if (isNaN(hours) || isNaN(minutes)) {
+            return null;
+        }
+
+        return Math.round(hours * 60 + minutes);
+    }
+
+    if (clean.includes("m")) {
+        const minutes = Number(clean.replace("m", "").trim());
+
+        if (isNaN(minutes)) {
+            return null;
+        }
+
+        return Math.round(minutes);
+    }
+
+    const value = Number(clean);
+
+    if (isNaN(value)) {
+        return null;
+    }
+
+    if (clean.includes(".")) {
+        return Math.round(value * 60);
+    }
+
+    return Math.round(value);
+}
+
+// FORMATS A DURATION FOR DISPLAY. UNDER AN HOUR STAYS IN MINUTES; ABOVE THAT READS AS HOURS, SINCE "600 MIN" MAKES PEOPLE DO ARITHMETIC.
+function formatDuration(minutes) {
+    if (minutes < 60) {
+        return minutes + " min";
+    }
+
+    const hours = minutes / 60;
+
+    if (hours === Math.round(hours)) {
+        return hours + "h";
+    }
+
+    return hours.toFixed(1) + "h";
+}
+
+// FINDS A SKILL BY ITS ID. SESSIONS ONLY STORE THE ID, SO EVERY PLACE THAT SHOWS A SESSION NEEDS THIS LOOKUP.
+function getSkillById(skills, id) {
+    return skills.find(function (skill) {
+        return skill.id === id;
+    });
+}
+
+// DRAWS THE MOST RECENT SESSIONS, NEWEST FIRST. LIMITED TO A HANDFUL BECAUSE THE DASHBOARD IS A SUMMARY, NOT AN ARCHIVE.
+function renderSessions(data, limit) {
+    const list = document.querySelector(".sessions-list");
+    const sessions = data.sessions.slice();
+
+    sessions.sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+    });
+
+    const recent = sessions.slice(0, limit);
+    let html = "";
+
+    for (let i = 0; i < recent.length; i++) {
+        const session = recent[i];
+        const skill = getSkillById(data.skills, session.skillId);
+        let notes = session.notes;
+
+        if (notes === null) {
+            notes = "";
+        }
+
+        html = html + `
+        <li class="session-row">
+            <span class="dot" style="background-color: ${skill.color}"></span>
+            <span class="session-skill">${skill.name}</span>
+            <span class="session-notes">${notes}</span>
+            <span class="session-duration">${formatDuration(session.durationMinutes)}</span>
+            <span class="session-date">${formatRelativeDate(session.date)}</span>
+        </li>`;
+    }
+
+    list.innerHTML = html;
+}
+
+// REDRAWS THE WHOLE DASHBOARD FROM THE CURRENT DATA. CALLED ON FIRST LOAD AND AGAIN AFTER EVERY CHANGE, SO THE SCREEN NEVER DRIFTS FROM WHAT'S STORED.
+function renderAll(data) {
+    const sorted = getSkillsByPractice(data);
+
+    renderSessions(data, 5);
     renderGreeting(data);
     renderFeatured(data, sorted[0]);
-    renderSkills(data, others);
+    renderSkills(data, sorted.slice(1, 4));
     renderHeatmap(data);
+}
+
+// ENTRY POINT — RUNS ONCE THE DATA IS READY.
+initialData().then(function (data) {
+    renderAll(data);
+    setupLogDialog(data);
 });
