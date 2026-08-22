@@ -549,10 +549,40 @@ function renderSessions(data, limit) {
             <span class="session-notes">${notes}</span>
             <span class="session-duration">${formatDuration(session.durationMinutes)}</span>
             <span class="session-date">${formatRelativeDate(session.date)}</span>
+
+            <button type="button" class="session-delete" data-id="${session.id}">Delete</button>
         </li>`;
     }
 
     list.innerHTML = html;
+}
+
+// WIRES DELETING FROM THE SESSION LIST. THE LISTENER SITS ON THE LIST ITSELF, NOT ON EACH BUTTON — THE ROWS ARE REBUILT ON EVERY RENDER, AND LISTENERS ATTACHED TO THEM WOULD DIE WITH THE OLD HTML.
+function setupSessionList(data) {
+    const list = document.querySelector(".sessions-list");
+
+    list.addEventListener("click", function (event) {
+        const button = event.target;
+
+        if (button.classList.contains("session-delete") === false) {
+            return;
+        }
+
+        const confirmed = confirm("Delete this session? This can't be undone.");
+
+        if (confirmed === false) {
+            return;
+        }
+
+        const id = button.dataset.id;
+
+        data.sessions = data.sessions.filter(function (session) {
+            return session.id !== id;
+        });
+
+        saveData(data);
+        renderAll(data);
+    });
 }
 
 // REDRAWS THE WHOLE DASHBOARD FROM THE CURRENT DATA. CALLED ON FIRST LOAD AND AGAIN AFTER EVERY CHANGE, SO THE SCREEN NEVER DRIFTS FROM WHAT'S STORED.

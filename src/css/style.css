@@ -352,7 +352,7 @@ body {
 
 .session-row {
     display: grid;
-    grid-template-columns: auto 120px 1fr auto auto;
+    grid-template-columns: auto 120px 1fr auto auto auto;
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) 0;
@@ -395,4 +395,18 @@ body {
     color: var(--color-text-tertiary);
     min-width: 90px;
     text-align: right;
+}
+
+.session-delete {
+    font-family: inherit;
+    font-size: var(--text-sm);
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    padding: var(--space-1);
+}
+
+.session-delete:hover {
+    color: var(--color-error);
 }
