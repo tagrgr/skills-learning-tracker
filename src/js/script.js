@@ -1,11 +1,19 @@
+/*
+CONSTANTS & STATE
+*/
 const STORAGE_KEY = "skilltrack-data";
 const ONE_DAY_MS = 86400000;
 const RING_CIRCUMFERENCE = 327;
 const NAME_KEY = "skilltrack-name";
+
 // HOLDS THE ID OF THE SESSION BEING EDITED, OR NULL WHEN LOGGING A NEW ONE. THIS IS WHAT TELLS THE SUBMIT HANDLER WHETHER TO CREATE OR UPDATE.
 let editingSessionId = null;
+// HOLDS THE ID OF THE SKILL BEING EDITED, OR NULL WHEN ADDING A NEW ONE.
+let editingSkillId = null;
 
-// DATA LAYER - LOAD SAMPLE-SKILLS.JSON, SAVE AND READ FROM LOCALSTORAGE.
+/*
+DATA LAYER — THE ONLY PLACE THAT TOUCHES LOCALSTORAGE
+*/
 function saveData(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -35,10 +43,54 @@ async function initialData() {
     return data;
 }
 
-// CALCULATIONS - THE PURE LOGIC. STREAK CALCS, TOTAL HOURS, AND DAILY HEATMAP. 
+// THE SAMPLE SESSIONS ORIGINALLY ENDED ON 19/03/2026, WHICH WOULD LEAVE THE HEATMAP WITH MONTHS OF EMPTY SQUARES. THIS SLIDES EVERY DATE FORWARD SO THE MOST RECENT SESSION LANDS ON TODAY.
+function shiftDatesToToday(data) {
+    const dates = getUniqueDates(getPracticeDates(data.sessions));
+    const latest = dates[0];
+
+    const today = new Date().toISOString().slice(0, 10);
+    const offset = new Date(today) - new Date(latest);
+
+    for (let i = 0; i < data.sessions.length; i++) {
+        const session = data.sessions[i];
+        const shifted = new Date(session.date).getTime() + offset;
+        session.date = new Date(shifted).toISOString().slice(0, 10);
+    }
+
+    return data;
+}
+
+// READS THE USER'S NAME, ASKING FOR IT ON THE FIRST VISIT. KEPT UNDER ITS OWN KEY SO CLEARING THE PRACTICE DATA DOESN'T WIPE IT.
+function getUserName() {
+    let name = localStorage.getItem(NAME_KEY);
+
+    if (name === null || name === "") {
+        name = prompt("What's your name?");
+
+        if (name === null || name === "") {
+            name = "there";
+        }
+
+        localStorage.setItem(NAME_KEY, name);
+    }
+
+    return name;
+}
+
+
+/*
+CALCULATIONS — PURE LOGIC, NO DOM, NO STORAGE
+*/
 function getSessionsBySkill(sessions, skillId) {
     return sessions.filter(function(session) {
         return session.skillId === skillId;
+    });
+}
+
+// FINDS A SKILL BY ITS ID. SESSIONS ONLY STORE THE ID, SO EVERY PLACE THAT SHOWS A SESSION NEEDS THIS LOOKUP.
+function getSkillById(skills, id) {
+    return skills.find(function (skill) {
+        return skill.id === id;
     });
 }
 
@@ -51,7 +103,7 @@ function getTotalMinutes(sessions) {
     }, initialValue);
 }
 
-// STREAK FUNCTION, GETS A LIST OF OBJECTS AND RETURNS A LIST OF DATES
+// PULLS JUST THE DATE OUT OF EVERY SESSION. FEEDS THE STREAK AND HEATMAP CALCULATIONS.
 function getPracticeDates(sessions) {
     return sessions.map(function(session) {
         return session.date;
@@ -86,7 +138,7 @@ function getStreak(dates) {
     return streak;
 }
 
-// THE HEATMAP KNOWS THAT FOR EACH DAY THE MANY MINUTES WERE PRACTICING.
+// TOTALS THE MINUTES PRACTISED ON EACH DAY. THE RESULT IS AN OBJECT KEYED BY DATE, WHICH IS WHAT THE HEATMAP LOOKS UP SQUARE BY SQUARE.
 function getMinutesByDate(sessions) {
     const totals = {};
 
@@ -103,23 +155,6 @@ function getMinutesByDate(sessions) {
     return totals;
 }
 
-// INITIALLY THE SESSION DATES WOULD END UP BY THE 19/03 AND TODAY IS JULY THE 28TH. SO MY HEATMAP WOULD SHOULD 4 EMPTY MONTHS, THIS FUNCTION SLIDES EVERYTHING FORWARD
-function shiftDatesToToday(data) {
-    const dates = getUniqueDates(getPracticeDates(data.sessions));
-    const latest = dates[0];
-
-    const today = new Date().toISOString().slice(0, 10);
-    const offset = new Date(today) - new Date(latest);
-
-    for (let i = 0; i < data.sessions.length; i++) {
-        const session = data.sessions[i];
-        const shifted = new Date(session.date).getTime() + offset;
-        session.date = new Date(shifted).toISOString().slice(0, 10);
-    }
-
-    return data;
-}
-
 // SORTS SKILLS FROM MOST TO LEAST PRACTICED — THE FIRST FILLS THE FEATURED CARD, THE NEXT THREE FILL THE GRID.
 function getSkillsByPractice(data) {
     const skills = data.skills.slice();
@@ -131,125 +166,6 @@ function getSkillsByPractice(data) {
     });
 
     return skills;
-}
-
-// RENDERING
-// DRAWS THE SKILL CARDS INTO THE GRID. THE LIST TO DRAW COMES AS A SEPARATE ARGUMENT, NOT FROM DATA.SKILLS — THAT'S WHAT LETS THE CALLER LEAVE OUT THE FEATURED SKILL INSTEAD OF ALWAYS SHOWING ALL SIX.
-function renderSkills(data, skills) {
-    const grid = document.querySelector(".skills-grid");
-    let html = "";
-
-    for (let i = 0; i < skills.length; i++) {
-        const skill = skills[i];
-        const skillSessions = getSessionsBySkill(data.sessions, skill.id);
-        const minutes = getTotalMinutes(skillSessions);
-        const dates = getUniqueDates(getPracticeDates(skillSessions));
-        const streak = getStreak(dates);
-        const hours = (minutes / 60).toFixed(1);
-
-        html = html + 
-        `
-        <li class="skill-card card">
-            <h3 class="skill-name">
-                <span class="dot" style="background-color: ${skill.color}"></span>
-                ${skill.name}
-            </h3>
-            <p class="skill-stat"><span class="skill-value">${hours}h</span></p>
-            <p class="skill-stat">🔥 ${streak}-day streak</p>
-        </li>
-        `;
-    }
-
-    grid.innerHTML = html;
-}
-
-// HEATMAP - ONE SQUARE PER DAY, COLORED BY MINUTES PRACTICED.
-// function renderHeatmap() {
-//     const heatMapping = document.querySelector(".heatmap");
-//     let html = "";
-
-//     for (let i = 0; i < 126; i++) {
-//         html = html + `<div class="heatmap-day"></div>`;
-//     }
-
-//     heatMapping.innerHTML = html;
-// }
-
-// MAKING SQUARES KNOW WHICH DAY IT REPRESENTS.
-function getHeatmapDates(days) {
-    const dates = [];
-    const today = new Date();
-
-    for (let i = days - 1; i >= 0; i--) {
-        const date = new Date(today.getTime() - i * ONE_DAY_MS);
-        dates.push(date.toISOString().slice(0, 10));
-    }
-
-    return dates;
-}
-
-// TURNS A DAY'S MINUTES INTO A COLOUR LEVEL. THE WORD RETURNED BECOMES A CSS CLASS (HEATMAP-LIGHT, HEATMAP-HEAVY...). UNDEFINED MEANS THE DAY HAS NO SESSIONS AT ALL, BECAUSE GETMINUTESBYDATE ONLY CREATES KEYS FOR DAYS THAT WERE PRACTISED.
-function getHeatmapLevel(minutes) {
-    if (minutes === undefined || minutes === 0) {
-        return "empty";
-    } else if (minutes < 30) {
-        return "light";
-    } else if (minutes >= 30 && minutes < 60) {
-        return "medium";
-    } else {
-        return "heavy";
-    }
-}
-
-// DRAWS 126 SQUARES — 18 WEEKS OF 7 DAYS — FROM THE OLDEST DATE UP TO TODAY. THE CSS GRID FILLS THEM COLUMN BY COLUMN, SO EACH COLUMN COMES OUT AS ONE WEEK.
-function renderHeatmap(data) {
-    const heatmap = document.querySelector(".heatmap");
-    const dates = getHeatmapDates(126);
-    const minutesByDate = getMinutesByDate(data.sessions);
-    let html = "";
-
-    for (let i = 0; i < dates.length; i++) {
-        const date = dates[i];
-        const minutes = minutesByDate[date];
-        const level = getHeatmapLevel(minutes);
-
-        html = html + `<div class="heatmap-day heatmap-${level}"></div>`;
-    }
-
-    heatmap.innerHTML = html;
-}
-
-// FILLS THE FEATURED CARD WITH THE MOST PRACTISED SKILL. UNLIKE RENDERSKILLS, THIS ONE DOESN'T BUILD HTML — THE CARD ALREADY EXISTS IN THE PAGE WITH ITS SVG RING, SO IT ONLY UPDATES THE VALUES INSIDE IT.
-function renderFeatured(data, skill) {
-    const sessions = getSessionsBySkill(data.sessions, skill.id);
-    const minutes = getTotalMinutes(sessions);
-    const dates = getUniqueDates(getPracticeDates(sessions));
-    const streak = getStreak(dates);
-
-    document.querySelector(".featured-name").textContent = skill.name;
-    document.querySelector(".featured-hours").textContent = (minutes / 60).toFixed(1) + "h";
-    document.querySelector(".featured-streak").textContent = "🔥 " + streak;
-
-    const percent = getGoalProgress(data, skill);
-    const ringText = document.querySelector(".ring-percent");
-    const ringProgress = document.querySelector(".ring-progress");
-
-    if (percent === null) {
-        ringText.textContent = "—";
-        ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE;
-    } else {
-        ringText.textContent = percent + "%";
-        ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE - (RING_CIRCUMFERENCE * percent / 100);
-    }
-
-    const last = getLastSession(sessions);
-
-    if (last === null) {
-        document.querySelector(".featured-last").textContent = "No sessions yet";
-    } else {
-        document.querySelector(".featured-last").textContent =
-            "Last session: " + formatRelativeDate(last.date) + " — " + formatDuration(last.durationMinutes);
-    }
 }
 
 // SUMS THE MINUTES PRACTISED IN THE LAST N DAYS. REUSES GETHEATMAPDATES TO BUILD THE LIST OF DATES THAT COUNT, SO THE WINDOW ALWAYS ENDS ON TODAY.
@@ -298,6 +214,115 @@ function getLastSession(sessions) {
     return sorted[0];
 }
 
+// COUNTS HOW MANY DIFFERENT SKILLS WERE PRACTISED TODAY. USES A SET SO TWO SESSIONS OF THE SAME SKILL ONLY COUNT ONCE.
+function countSkillsPracticedToday(sessions) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const todaySessions = sessions.filter(function (session) {
+        return session.date === today;
+    });
+
+    const skillIds = todaySessions.map(function (session) {
+        return session.skillId;
+    });
+
+    return new Set(skillIds).size;
+}
+
+// BUILDS THE LIST OF DATES THE HEATMAP COVERS, OLDEST FIRST, ALWAYS ENDING ON TODAY.
+function getHeatmapDates(days) {
+    const dates = [];
+    const today = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today.getTime() - i * ONE_DAY_MS);
+        dates.push(date.toISOString().slice(0, 10));
+    }
+
+    return dates;
+}
+
+// TURNS A DAY'S MINUTES INTO A COLOUR LEVEL. THE WORD RETURNED BECOMES A CSS CLASS (HEATMAP-LIGHT, HEATMAP-HEAVY...). UNDEFINED MEANS THE DAY HAS NO SESSIONS AT ALL, BECAUSE GETMINUTESBYDATE ONLY CREATES KEYS FOR DAYS THAT WERE PRACTISED.
+function getHeatmapLevel(minutes) {
+    if (minutes === undefined || minutes === 0) {
+        return "empty";
+    } else if (minutes < 30) {
+        return "light";
+    } else if (minutes >= 30 && minutes < 60) {
+        return "medium";
+    } else {
+        return "heavy";
+    }
+}
+
+
+/*
+FORMATTING — TURNS RAW VALUES INTO TEXT FOR THE SCREEN
+*/
+
+// TURNS WHAT THE USER TYPED INTO MINUTES. ACCEPTS "45", "1H 30M" AND "1.5". A DECIMAL MEANS HOURS, A WHOLE NUMBER MEANS MINUTES. RETURNS NULL WHEN THE TEXT MAKES NO SENSE, SO THE CALLER CAN SHOW AN ERROR.
+function parseDuration(text) {
+    const clean = text.trim().toLowerCase();
+
+    if (clean === "") {
+        return null;
+    }
+
+    if (clean.includes("h")) {
+        const parts = clean.split("h");
+        const hours = Number(parts[0]);
+        const rest = parts[1].replace("m", "").trim();
+        let minutes = 0;
+
+        if (rest !== "") {
+            minutes = Number(rest);
+        }
+
+        if (isNaN(hours) || isNaN(minutes)) {
+            return null;
+        }
+
+        return Math.round(hours * 60 + minutes);
+    }
+
+    if (clean.includes("m")) {
+        const minutes = Number(clean.replace("m", "").trim());
+
+        if (isNaN(minutes)) {
+            return null;
+        }
+
+        return Math.round(minutes);
+    }
+
+    const value = Number(clean);
+
+    if (isNaN(value)) {
+        return null;
+    }
+
+    if (clean.includes(".")) {
+        return Math.round(value * 60);
+    }
+
+    return Math.round(value);
+}
+
+// FORMATS A DURATION FOR DISPLAY. UNDER AN HOUR STAYS IN MINUTES; ABOVE THAT READS AS HOURS, SINCE "600 MIN" MAKES PEOPLE DO ARITHMETIC.
+function formatDuration(minutes) {
+    if (minutes < 60) {
+        return minutes + " min";
+    }
+
+    const hours = minutes / 60;
+
+    if (hours === Math.round(hours)) {
+        return hours + "h";
+    }
+
+    return hours.toFixed(1) + "h";
+}
+
 // TURNS A DATE INTO FRIENDLY TEXT — "TODAY", "YESTERDAY", "5 DAYS AGO". PEOPLE READ RECENCY FASTER THAN THEY READ A CALENDAR DATE.
 function formatRelativeDate(date) {
     const today = new Date().toISOString().slice(0, 10);
@@ -325,37 +350,22 @@ function getGreeting() {
     }
 }
 
-// COUNTS HOW MANY DIFFERENT SKILLS WERE PRACTISED TODAY. USES A SET SO TWO SESSIONS OF THE SAME SKILL ONLY COUNT ONCE.
-function countSkillsPracticedToday(sessions) {
-    const today = new Date().toISOString().slice(0, 10);
+// TURNS A NAME INTO UP TO TWO INITIALS FOR THE AVATAR. "TIAGO GREGORI" BECOMES "TG"; A SINGLE NAME GIVES JUST ITS FIRST LETTER.
+function getInitials(name) {
+    const parts = name.trim().split(" ");
+    let initials = parts[0].charAt(0);
 
-    const todaySessions = sessions.filter(function (session) {
-        return session.date === today;
-    });
-
-    const skillIds = todaySessions.map(function (session) {
-        return session.skillId;
-    });
-
-    return new Set(skillIds).size;
-}
-
-// READS THE USER'S NAME, ASKING FOR IT ON THE FIRST VISIT. KEPT UNDER ITS OWN KEY SO CLEARING THE PRACTICE DATA DOESN'T WIPE IT.
-function getUserName() {
-    let name = localStorage.getItem(NAME_KEY);
-
-    if (name === null || name === "") {
-        name = prompt("What's your name?");
-
-        if (name === null || name === "") {
-            name = "there";
-        }
-
-        localStorage.setItem(NAME_KEY, name);
+    if (parts.length > 1) {
+        initials = initials + parts[parts.length - 1].charAt(0);
     }
 
-    return name;
+    return initials.toUpperCase();
 }
+
+
+/* 
+RENDERING — WRITES TO THE SCREEN, NEVER CHANGES THE DATA
+*/
 
 // FILLS THE GREETING LINE. CHANGES WITH THE TIME OF DAY AND WITH TODAY'S ACTIVITY, SO THE PAGE READS DIFFERENTLY ON EACH VISIT.
 function renderGreeting(data) {
@@ -375,21 +385,165 @@ function renderGreeting(data) {
     }
 }
 
-// TURNS A NAME INTO UP TO TWO INITIALS FOR THE AVATAR. "TIAGO GREGORI" BECOMES "TG"; A SINGLE NAME GIVES JUST ITS FIRST LETTER.
-function getInitials(name) {
-    const parts = name.trim().split(" ");
-    let initials = parts[0].charAt(0);
+// FILLS THE FEATURED CARD WITH THE MOST PRACTISED SKILL. UNLIKE RENDERSKILLS, THIS ONE DOESN'T BUILD HTML — THE CARD ALREADY EXISTS IN THE PAGE WITH ITS SVG RING, SO IT ONLY UPDATES THE VALUES INSIDE IT.
+function renderFeatured(data, skill) {
+    const sessions = getSessionsBySkill(data.sessions, skill.id);
+    const minutes = getTotalMinutes(sessions);
+    const dates = getUniqueDates(getPracticeDates(sessions));
+    const streak = getStreak(dates);
 
-    if (parts.length > 1) {
-        initials = initials + parts[parts.length - 1].charAt(0);
+    document.querySelector(".featured-name").textContent = skill.name;
+    document.querySelector(".featured-hours").textContent = (minutes / 60).toFixed(1) + "h";
+    document.querySelector(".featured-streak").textContent = "🔥 " + streak;
+
+    const percent = getGoalProgress(data, skill);
+    const ringText = document.querySelector(".ring-percent");
+    const ringProgress = document.querySelector(".ring-progress");
+
+    if (percent === null) {
+        ringText.textContent = "—";
+        ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE;
+    } else {
+        ringText.textContent = percent + "%";
+        ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE - (RING_CIRCUMFERENCE * percent / 100);
     }
 
-    return initials.toUpperCase();
+    const last = getLastSession(sessions);
+
+    if (last === null) {
+        document.querySelector(".featured-last").textContent = "No sessions yet";
+    } else {
+        document.querySelector(".featured-last").textContent =
+            "Last session: " + formatRelativeDate(last.date) + " — " + formatDuration(last.durationMinutes);
+    }
 }
 
-// FILLS THE SKILL DROPDOWN AND WIRES THE DIALOG: OPENING, CANCELLING AND SAVING. RUNS ONCE — EVENT LISTENERS ONLY NEED REGISTERING A SINGLE TIME.
-function setupLogDialog(data) {
-    const dialog = document.querySelector("#log-dialog");
+// DRAWS THE SKILL CARDS INTO THE GRID. THE LIST TO DRAW COMES AS A SEPARATE ARGUMENT, NOT FROM DATA.SKILLS — THAT'S WHAT LETS THE CALLER LEAVE OUT THE FEATURED SKILL INSTEAD OF ALWAYS SHOWING ALL SIX.
+function renderSkills(data, skills) {
+    const grid = document.querySelector(".skills-grid");
+    let html = "";
+
+    for (let i = 0; i < skills.length; i++) {
+        const skill = skills[i];
+        const skillSessions = getSessionsBySkill(data.sessions, skill.id);
+        const minutes = getTotalMinutes(skillSessions);
+        const dates = getUniqueDates(getPracticeDates(skillSessions));
+        const streak = getStreak(dates);
+        const hours = (minutes / 60).toFixed(1);
+
+        html = html +
+        `
+        <li class="skill-card card">
+            <h3 class="skill-name">
+                <span class="dot" style="background-color: ${skill.color}"></span>
+                ${skill.name}
+            </h3>
+            <p class="skill-stat"><span class="skill-value">${hours}h</span></p>
+            <p class="skill-stat">🔥 ${streak}-day streak</p>
+        </li>
+        `;
+    }
+
+    grid.innerHTML = html;
+}
+
+// DRAWS 126 SQUARES — 18 WEEKS OF 7 DAYS — FROM THE OLDEST DATE UP TO TODAY. THE CSS GRID FILLS THEM COLUMN BY COLUMN, SO EACH COLUMN COMES OUT AS ONE WEEK.
+function renderHeatmap(data) {
+    const heatmap = document.querySelector(".heatmap");
+    const dates = getHeatmapDates(126);
+    const minutesByDate = getMinutesByDate(data.sessions);
+    let html = "";
+
+    for (let i = 0; i < dates.length; i++) {
+        const date = dates[i];
+        const minutes = minutesByDate[date];
+        const level = getHeatmapLevel(minutes);
+
+        html = html + `<div class="heatmap-day heatmap-${level}"></div>`;
+    }
+
+    heatmap.innerHTML = html;
+}
+
+// DRAWS THE MOST RECENT SESSIONS, NEWEST FIRST. LIMITED TO A HANDFUL BECAUSE THE DASHBOARD IS A SUMMARY, NOT AN ARCHIVE.
+function renderSessions(data, limit) {
+    const list = document.querySelector(".sessions-list");
+    const sessions = data.sessions.slice();
+
+    sessions.sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+    });
+
+    const recent = sessions.slice(0, limit);
+    let html = "";
+
+    for (let i = 0; i < recent.length; i++) {
+        const session = recent[i];
+        const skill = getSkillById(data.skills, session.skillId);
+        let notes = session.notes;
+
+        if (notes === null) {
+            notes = "";
+        }
+
+        html = html + `
+        <li class="session-row">
+            <span class="dot" style="background-color: ${skill.color}"></span>
+            <span class="session-skill">${skill.name}</span>
+            <span class="session-notes">${notes}</span>
+            <span class="session-duration">${formatDuration(session.durationMinutes)}</span>
+            <span class="session-date">${formatRelativeDate(session.date)}</span>
+
+            <button type="button" class="session-edit" data-id="${session.id}">Edit</button>
+
+            <button type="button" class="session-delete" data-id="${session.id}">Delete</button>
+        </li>`;
+    }
+
+    list.innerHTML = html;
+}
+
+// DRAWS THE SKILL LIST INSIDE THE MANAGE DIALOG. SHOWS THE SESSION COUNT SO THE USER KNOWS WHAT DELETING WOULD COST.
+function renderManageList(data) {
+    const list = document.querySelector(".manage-list");
+
+    if (data.skills.length === 0) {
+        list.innerHTML = `<li class="manage-empty">No skills yet. Add your first one below to start tracking your practice.</li>`;
+        return;
+    }
+
+    let html = "";
+
+    for (let i = 0; i < data.skills.length; i++) {
+        const skill = data.skills[i];
+        const count = getSessionsBySkill(data.sessions, skill.id).length;
+
+        html = html + `
+        <li class="manage-row">
+            <span class="dot" style="background-color: ${skill.color}"></span>
+            <span class="manage-name">${skill.name}</span>
+            <span class="manage-count">${count} sessions</span>
+            <button type="button" class="skill-edit" data-id="${skill.id}">Edit</button>
+            <button type="button" class="skill-delete" data-id="${skill.id}">Delete</button>
+        </li>`;
+    }
+
+    list.innerHTML = html;
+}
+
+// REDRAWS THE WHOLE DASHBOARD FROM THE CURRENT DATA. CALLED ON FIRST LOAD AND AGAIN AFTER EVERY CHANGE, SO THE SCREEN NEVER DRIFTS FROM WHAT'S STORED.
+function renderAll(data) {
+    const sorted = getSkillsByPractice(data);
+
+    renderGreeting(data);
+    renderFeatured(data, sorted[0]);
+    renderSkills(data, sorted.slice(1, 4));
+    renderHeatmap(data);
+    renderSessions(data, 5);
+}
+
+// REBUILDS THE SKILL DROPDOWN IN THE LOG DIALOG. CALLED AGAIN WHENEVER SKILLS CHANGE, OTHERWISE A NEWLY ADDED SKILL WOULDN'T BE SELECTABLE.
+function renderSkillOptions(data) {
     const select = document.querySelector("#log-skill");
     let options = "";
 
@@ -399,6 +553,46 @@ function setupLogDialog(data) {
     }
 
     select.innerHTML = options;
+}
+
+/*
+EVENTS — EVERYTHING THAT REACTS TO THE USER
+*/
+
+// OPENS THE LOG DIALOG. PASS A SESSION TO EDIT IT, OR NULL TO LOG A NEW ONE — SAME FORM, DIFFERENT STARTING VALUES.
+function openLogDialog(session) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    document.querySelector(".log-error").hidden = true;
+
+    if (session === null) {
+        editingSessionId = null;
+        document.querySelector(".log-title").textContent = "Log a session";
+        document.querySelector("#log-duration").value = "";
+        document.querySelector("#log-date").value = today;
+        document.querySelector("#log-notes").value = "";
+    } else {
+        editingSessionId = session.id;
+        document.querySelector(".log-title").textContent = "Edit session";
+        document.querySelector("#log-skill").value = session.skillId;
+        document.querySelector("#log-duration").value = session.durationMinutes;
+        document.querySelector("#log-date").value = session.date;
+
+        if (session.notes === null) {
+            document.querySelector("#log-notes").value = "";
+        } else {
+            document.querySelector("#log-notes").value = session.notes;
+        }
+    }
+
+    document.querySelector("#log-dialog").showModal();
+}
+
+// WIRES THE LOG DIALOG: OPENING, CANCELLING AND SAVING. RUNS ONCE — EVENT LISTENERS ONLY NEED REGISTERING A SINGLE TIME.
+function setupLogDialog(data) {
+    const dialog = document.querySelector("#log-dialog");
+
+    renderSkillOptions(data);
 
     document.querySelector("#log-open").addEventListener("click", function () {
         openLogDialog(null);
@@ -462,118 +656,10 @@ function setupLogDialog(data) {
         renderAll(data);
         form.reset();
         dialog.close();
-        
     });
 }
 
-// TURNS WHAT THE USER TYPED INTO MINUTES. ACCEPTS "45", "1H 30M" AND "1.5". A DECIMAL MEANS HOURS, A WHOLE NUMBER MEANS MINUTES. RETURNS NULL WHEN THE TEXT MAKES NO SENSE, SO THE CALLER CAN SHOW AN ERROR.
-function parseDuration(text) {
-    const clean = text.trim().toLowerCase();
-
-    if (clean === "") {
-        return null;
-    }
-
-    if (clean.includes("h")) {
-        const parts = clean.split("h");
-        const hours = Number(parts[0]);
-        const rest = parts[1].replace("m", "").trim();
-        let minutes = 0;
-
-        if (rest !== "") {
-            minutes = Number(rest);
-        }
-        if (isNaN(hours) || isNaN(minutes)) {
-            return null;
-        }
-
-        return Math.round(hours * 60 + minutes);
-    }
-
-    if (clean.includes("m")) {
-        const minutes = Number(clean.replace("m", "").trim());
-
-        if (isNaN(minutes)) {
-            return null;
-        }
-
-        return Math.round(minutes);
-    }
-
-    const value = Number(clean);
-
-    if (isNaN(value)) {
-        return null;
-    }
-
-    if (clean.includes(".")) {
-        return Math.round(value * 60);
-    }
-
-    return Math.round(value);
-}
-
-// FORMATS A DURATION FOR DISPLAY. UNDER AN HOUR STAYS IN MINUTES; ABOVE THAT READS AS HOURS, SINCE "600 MIN" MAKES PEOPLE DO ARITHMETIC.
-function formatDuration(minutes) {
-    if (minutes < 60) {
-        return minutes + " min";
-    }
-
-    const hours = minutes / 60;
-
-    if (hours === Math.round(hours)) {
-        return hours + "h";
-    }
-
-    return hours.toFixed(1) + "h";
-}
-
-// FINDS A SKILL BY ITS ID. SESSIONS ONLY STORE THE ID, SO EVERY PLACE THAT SHOWS A SESSION NEEDS THIS LOOKUP.
-function getSkillById(skills, id) {
-    return skills.find(function (skill) {
-        return skill.id === id;
-    });
-}
-
-// DRAWS THE MOST RECENT SESSIONS, NEWEST FIRST. LIMITED TO A HANDFUL BECAUSE THE DASHBOARD IS A SUMMARY, NOT AN ARCHIVE.
-function renderSessions(data, limit) {
-    const list = document.querySelector(".sessions-list");
-    const sessions = data.sessions.slice();
-
-    sessions.sort(function (a, b) {
-        return new Date(b.date) - new Date(a.date);
-    });
-
-    const recent = sessions.slice(0, limit);
-    let html = "";
-
-    for (let i = 0; i < recent.length; i++) {
-        const session = recent[i];
-        const skill = getSkillById(data.skills, session.skillId);
-        let notes = session.notes;
-
-        if (notes === null) {
-            notes = "";
-        }
-
-        html = html + `
-        <li class="session-row">
-            <span class="dot" style="background-color: ${skill.color}"></span>
-            <span class="session-skill">${skill.name}</span>
-            <span class="session-notes">${notes}</span>
-            <span class="session-duration">${formatDuration(session.durationMinutes)}</span>
-            <span class="session-date">${formatRelativeDate(session.date)}</span>
-
-            <button type="button" class="session-edit" data-id="${session.id}">Edit</button>
-
-            <button type="button" class="session-delete" data-id="${session.id}">Delete</button>
-        </li>`;
-    }
-
-    list.innerHTML = html;
-}
-
-// WIRES DELETING FROM THE SESSION LIST. THE LISTENER SITS ON THE LIST ITSELF, NOT ON EACH BUTTON — THE ROWS ARE REBUILT ON EVERY RENDER, AND LISTENERS ATTACHED TO THEM WOULD DIE WITH THE OLD HTML.
+// WIRES EDITING AND DELETING FROM THE SESSION LIST. THE LISTENER SITS ON THE LIST ITSELF, NOT ON EACH BUTTON — THE ROWS ARE REBUILT ON EVERY RENDER, AND LISTENERS ATTACHED TO THEM WOULD DIE WITH THE OLD HTML.
 function setupSessionList(data) {
     const list = document.querySelector(".sessions-list");
 
@@ -612,63 +698,6 @@ function setupSessionList(data) {
     });
 }
 
-// OPENS THE LOG DIALOG. PASS A SESSION TO EDIT IT, OR NULL TO LOG A NEW ONE — SAME FORM, DIFFERENT STARTING VALUES.
-function openLogDialog(session) {
-    const today = new Date().toISOString().slice(0, 10);
-
-    document.querySelector(".log-error").hidden = true;
-
-    if (session === null) {
-        editingSessionId = null;
-        document.querySelector(".log-title").textContent = "Log a session";
-        document.querySelector("#log-duration").value = "";
-        document.querySelector("#log-date").value = today;
-        document.querySelector("#log-notes").value = "";
-    } else {
-        editingSessionId = session.id;
-        document.querySelector(".log-title").textContent = "Edit session";
-        document.querySelector("#log-skill").value = session.skillId;
-        document.querySelector("#log-duration").value = session.durationMinutes;
-        document.querySelector("#log-date").value = session.date;
-
-        if (session.notes === null) {
-            document.querySelector("#log-notes").value = "";
-        } else {
-            document.querySelector("#log-notes").value = session.notes;
-        }
-    }
-
-    document.querySelector("#log-dialog").showModal();
-}
-
-// DRAWS THE SKILL LIST INSIDE THE MANAGE DIALOG. SHOWS THE SESSION COUNT SO THE USER KNOWS WHAT DELETING WOULD COST.
-function renderManageList(data) {
-    const list = document.querySelector(".manage-list");
-
-    if (data.skills.length === 0) {
-        list.innerHTML = `<li class="manage-empty">No skills yet. Add your first one below to start tracking your practice.</li>`;
-        return;
-    }
-
-    let html = "";
-
-    for (let i = 0; i < data.skills.length; i++) {
-        const skill = data.skills[i];
-        const count = getSessionsBySkill(data.sessions, skill.id).length;
-
-        html = html + `
-        <li class="manage-row">
-            <span class="dot" style="background-color: ${skill.color}"></span>
-            <span class="manage-name">${skill.name}</span>
-            <span class="manage-count">${count} sessions</span>
-            <button type="button" class="skill-edit" data-id="${skill.id}">Edit</button>
-            <button type="button" class="skill-delete" data-id="${skill.id}">Delete</button>
-        </li>`;
-    }
-
-    list.innerHTML = html;
-}
-
 // WIRES THE MANAGE DIALOG: OPENING, CLOSING, AND SHOWING THE TARGET FIELD ONLY WHEN A GOAL TYPE IS CHOSEN.
 function setupSkillsDialog(data) {
     const dialog = document.querySelector("#skills-dialog");
@@ -676,6 +705,7 @@ function setupSkillsDialog(data) {
     const targetField = document.querySelector("#skill-target-field");
 
     document.querySelector("#skills-open").addEventListener("click", function () {
+        fillSkillForm(null);
         renderManageList(data);
         dialog.showModal();
     });
@@ -687,23 +717,97 @@ function setupSkillsDialog(data) {
     goalType.addEventListener("change", function () {
         targetField.hidden = goalType.value === "none";
     });
+
+    const form = document.querySelector(".skill-form");
+    const error = document.querySelector(".skill-error");
+
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const name = document.querySelector("#skill-name").value.trim();
+
+        if (name === "") {
+            error.textContent = "Give the skill a name.";
+            error.hidden = false;
+            return;
+        }
+
+        if (editingSkillId === null) {
+            data.skills.push({
+                id: "skill-" + Date.now(),
+                name: name,
+                color: document.querySelector("#skill-color").value,
+                goal: readGoalFromForm(),
+                createdAt: new Date().toISOString()
+            });
+        } else {
+            const skill = getSkillById(data.skills, editingSkillId);
+            skill.name = name;
+            skill.color = document.querySelector("#skill-color").value;
+            skill.goal = readGoalFromForm();
+        } 
+
+        error.hidden = true;
+        saveData(data);
+        renderManageList(data);
+        renderSkillOptions(data);
+        renderAll(data);
+        fillSkillForm(null);
+    });
 }
 
-// REDRAWS THE WHOLE DASHBOARD FROM THE CURRENT DATA. CALLED ON FIRST LOAD AND AGAIN AFTER EVERY CHANGE, SO THE SCREEN NEVER DRIFTS FROM WHAT'S STORED.
-function renderAll(data) {
-    const sorted = getSkillsByPractice(data);
+// TURNS THE GOAL FIELDS INTO THE OBJECT SHAPE THE DATA USES, OR NULL WHEN "NO GOAL" IS CHOSEN — THE SAME SHAPE THE SEEDED SKILLS HAVE, SO NOTHING DOWNSTREAM NEEDS A SPECIAL CASE.
+function readGoalFromForm() {
+    const type = document.querySelector("#skill-goal-type").value;
 
-    renderSessions(data, 5);
-    renderGreeting(data);
-    renderFeatured(data, sorted[0]);
-    renderSkills(data, sorted.slice(1, 4));
-    renderHeatmap(data);
+    if (type === "none") {
+        return null;
+    }
+
+    return {
+        type: type,
+        targetHours: Number(document.querySelector("#skill-target").value)
+    };
 }
 
-// ENTRY POINT — RUNS ONCE THE DATA IS READY.
+// FILLS THE SKILL FORM FOR EDITING, OR CLEARS IT FOR A NEW SKILL. SAME FORM EITHER WAY — ONLY THE VALUES AND THE BUTTON LABEL CHANGE.
+function fillSkillForm(skill) {
+    const targetField = document.querySelector("#skill-target-field");
+    const submit = document.querySelector("#skill-submit");
+
+    document.querySelector(".skill-error").hidden = true;
+
+    if (skill === null) {
+        editingSkillId = null;
+        submit.textContent = "Add skill";
+        document.querySelector("#skill-name").value = "";
+        document.querySelector("#skill-color").value = "#059669";
+        document.querySelector("#skill-goal-type").value = "none";
+        document.querySelector("#skill-target").value = 5;
+        targetField.hidden = true;
+    } else {
+        editingSkillId = skill.id;
+        submit.textContent = "Save changes";
+        document.querySelector("#skill-name").value = skill.name;
+        document.querySelector("#skill-color").value = skill.color;
+
+        if (skill.goal === null) {
+            document.querySelector("#skill-goal-type").value = "none";
+            targetField.hidden = true;
+        } else {
+            document.querySelector("#skill-goal-type").value = skill.goal.type;
+            document.querySelector("#skill-target").value = skill.goal.targetHours;
+            targetField.hidden = false;
+        }
+    }
+}
+
+/*
+ENTRY POINT
+*/
 initialData().then(function (data) {
-    setupSkillsDialog(data);
     renderAll(data);
     setupLogDialog(data);
     setupSessionList(data);
+    setupSkillsDialog(data);
 });
