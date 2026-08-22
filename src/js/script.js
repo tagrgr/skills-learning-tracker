@@ -534,8 +534,20 @@ function renderManageList(data) {
 // REDRAWS THE WHOLE DASHBOARD FROM THE CURRENT DATA. CALLED ON FIRST LOAD AND AGAIN AFTER EVERY CHANGE, SO THE SCREEN NEVER DRIFTS FROM WHAT'S STORED.
 function renderAll(data) {
     const sorted = getSkillsByPractice(data);
+    const dashboard = document.querySelector(".dashboard");
+    const empty = document.querySelector(".dashboard-empty");
 
     renderGreeting(data);
+
+    if (sorted.length === 0) {
+        dashboard.hidden = true;
+        empty.hidden = false;
+        return;
+    }
+
+    dashboard.hidden = false;
+    empty.hidden = true;
+    
     renderFeatured(data, sorted[0]);
     renderSkills(data, sorted.slice(1, 4));
     renderHeatmap(data);
@@ -753,6 +765,41 @@ function setupSkillsDialog(data) {
         renderSkillOptions(data);
         renderAll(data);
         fillSkillForm(null);
+    });
+
+    document.querySelector(".manage-list").addEventListener("click", function (event) {
+        const button = event.target;
+
+        if (button.classList.contains("skill-edit")) {
+            fillSkillForm(getSkillById(data.skills, button.dataset.id));
+            return;
+        }
+
+        if (button.classList.contains("skill-delete") === false) {
+            return;
+        }
+
+        const skill = getSkillById(data.skills, button.dataset.id);
+        const count = getSessionsBySkill(data.sessions, skill.id).length;
+        const confirmed = confirm("Delete " + skill.name + " and its " + count + " sessions? This can't be undone.");
+
+        if (confirmed === false) {
+            return;
+        }
+
+        data.skills = data.skills.filter(function (item) {
+            return item.id !== skill.id;
+        });
+
+        data.sessions = data.sessions.filter(function (session) {
+            return session.skillId !== skill.id;
+        });
+
+        saveData(data);
+        fillSkillForm(null);
+        renderManageList(data);
+        renderSkillOptions(data);
+        renderAll(data);
     });
 }
 

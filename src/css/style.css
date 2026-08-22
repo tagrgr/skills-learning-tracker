@@ -493,3 +493,9 @@ body {
 .skill-delete:hover {
     color: var(--color-error);
 }
+
+.dashboard-empty {
+    color: var(--color-text-secondary);
+    padding: var(--space-12) 0;
+    text-align: center;
+}
