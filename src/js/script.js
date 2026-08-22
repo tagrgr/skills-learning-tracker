@@ -65,7 +65,11 @@ function getUserName() {
     let name = localStorage.getItem(NAME_KEY);
 
     if (name === null || name === "") {
-        name = prompt("What's your name?");
+        try {
+            name = prompt("What's your name?");
+        } catch (error) {
+            name = null;
+        }
 
         if (name === null || name === "") {
             name = "there";
@@ -547,7 +551,7 @@ function renderAll(data) {
 
     dashboard.hidden = false;
     empty.hidden = true;
-    
+
     renderFeatured(data, sorted[0]);
     renderSkills(data, sorted.slice(1, 4));
     renderHeatmap(data);
