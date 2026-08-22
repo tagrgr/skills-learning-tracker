@@ -2,6 +2,8 @@ const STORAGE_KEY = "skilltrack-data";
 const ONE_DAY_MS = 86400000;
 const RING_CIRCUMFERENCE = 327;
 const NAME_KEY = "skilltrack-name";
+// HOLDS THE ID OF THE SESSION BEING EDITED, OR NULL WHEN LOGGING A NEW ONE. THIS IS WHAT TELLS THE SUBMIT HANDLER WHETHER TO CREATE OR UPDATE.
+let editingSessionId = null;
 
 // DATA LAYER - LOAD SAMPLE-SKILLS.JSON, SAVE AND READ FROM LOCALSTORAGE.
 function saveData(data) {
@@ -162,16 +164,16 @@ function renderSkills(data, skills) {
 }
 
 // HEATMAP - ONE SQUARE PER DAY, COLORED BY MINUTES PRACTICED.
-function renderHeatmap() {
-    const heatMapping = document.querySelector(".heatmap");
-    let html = "";
+// function renderHeatmap() {
+//     const heatMapping = document.querySelector(".heatmap");
+//     let html = "";
 
-    for (let i = 0; i < 126; i++) {
-        html = html + `<div class="heatmap-day"></div>`;
-    }
+//     for (let i = 0; i < 126; i++) {
+//         html = html + `<div class="heatmap-day"></div>`;
+//     }
 
-    heatMapping.innerHTML = html;
-}
+//     heatMapping.innerHTML = html;
+// }
 
 // MAKING SQUARES KNOW WHICH DAY IT REPRESENTS.
 function getHeatmapDates(days) {
@@ -399,8 +401,7 @@ function setupLogDialog(data) {
     select.innerHTML = options;
 
     document.querySelector("#log-open").addEventListener("click", function () {
-        document.querySelector("#log-date").value = new Date().toISOString().slice(0, 10);
-        dialog.showModal();
+        openLogDialog(null);
     });
 
     document.querySelector("#log-cancel").addEventListener("click", function () {
@@ -435,20 +436,33 @@ function setupLogDialog(data) {
             notes = null;
         }
 
-        data.sessions.push({
-            id: "s-" + Date.now(),
-            skillId: document.querySelector("#log-skill").value,
-            durationMinutes: minutes,
-            date: date,
-            notes: notes,
-            createdAt: new Date().toISOString()
-        });
+        if (editingSessionId === null) {
+            data.sessions.push({
+                id: "s-" + Date.now(),
+                skillId: document.querySelector("#log-skill").value,
+                durationMinutes: minutes,
+                date: date,
+                notes: notes,
+                createdAt: new Date().toISOString()
+            });
+        } else {
+            const session = data.sessions.find(function (item) {
+                return item.id === editingSessionId;
+            });
+
+            session.skillId = document.querySelector("#log-skill").value;
+            session.durationMinutes = minutes;
+            session.date = date;
+            session.notes = notes;
+        }
 
         error.hidden = true;
         saveData(data);
+        editingSessionId = null;
         renderAll(data);
         form.reset();
         dialog.close();
+        
     });
 }
 
@@ -550,6 +564,8 @@ function renderSessions(data, limit) {
             <span class="session-duration">${formatDuration(session.durationMinutes)}</span>
             <span class="session-date">${formatRelativeDate(session.date)}</span>
 
+            <button type="button" class="session-edit" data-id="${session.id}">Edit</button>
+
             <button type="button" class="session-delete" data-id="${session.id}">Delete</button>
         </li>`;
     }
@@ -563,6 +579,17 @@ function setupSessionList(data) {
 
     list.addEventListener("click", function (event) {
         const button = event.target;
+
+        if (button.classList.contains("session-edit")) {
+            const id = button.dataset.id;
+
+            const session = data.sessions.find(function (item) {
+                return item.id === id;
+            });
+
+            openLogDialog(session);
+            return;
+        }
 
         if (button.classList.contains("session-delete") === false) {
             return;
@@ -585,6 +612,83 @@ function setupSessionList(data) {
     });
 }
 
+// OPENS THE LOG DIALOG. PASS A SESSION TO EDIT IT, OR NULL TO LOG A NEW ONE — SAME FORM, DIFFERENT STARTING VALUES.
+function openLogDialog(session) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    document.querySelector(".log-error").hidden = true;
+
+    if (session === null) {
+        editingSessionId = null;
+        document.querySelector(".log-title").textContent = "Log a session";
+        document.querySelector("#log-duration").value = "";
+        document.querySelector("#log-date").value = today;
+        document.querySelector("#log-notes").value = "";
+    } else {
+        editingSessionId = session.id;
+        document.querySelector(".log-title").textContent = "Edit session";
+        document.querySelector("#log-skill").value = session.skillId;
+        document.querySelector("#log-duration").value = session.durationMinutes;
+        document.querySelector("#log-date").value = session.date;
+
+        if (session.notes === null) {
+            document.querySelector("#log-notes").value = "";
+        } else {
+            document.querySelector("#log-notes").value = session.notes;
+        }
+    }
+
+    document.querySelector("#log-dialog").showModal();
+}
+
+// DRAWS THE SKILL LIST INSIDE THE MANAGE DIALOG. SHOWS THE SESSION COUNT SO THE USER KNOWS WHAT DELETING WOULD COST.
+function renderManageList(data) {
+    const list = document.querySelector(".manage-list");
+
+    if (data.skills.length === 0) {
+        list.innerHTML = `<li class="manage-empty">No skills yet. Add your first one below to start tracking your practice.</li>`;
+        return;
+    }
+
+    let html = "";
+
+    for (let i = 0; i < data.skills.length; i++) {
+        const skill = data.skills[i];
+        const count = getSessionsBySkill(data.sessions, skill.id).length;
+
+        html = html + `
+        <li class="manage-row">
+            <span class="dot" style="background-color: ${skill.color}"></span>
+            <span class="manage-name">${skill.name}</span>
+            <span class="manage-count">${count} sessions</span>
+            <button type="button" class="skill-edit" data-id="${skill.id}">Edit</button>
+            <button type="button" class="skill-delete" data-id="${skill.id}">Delete</button>
+        </li>`;
+    }
+
+    list.innerHTML = html;
+}
+
+// WIRES THE MANAGE DIALOG: OPENING, CLOSING, AND SHOWING THE TARGET FIELD ONLY WHEN A GOAL TYPE IS CHOSEN.
+function setupSkillsDialog(data) {
+    const dialog = document.querySelector("#skills-dialog");
+    const goalType = document.querySelector("#skill-goal-type");
+    const targetField = document.querySelector("#skill-target-field");
+
+    document.querySelector("#skills-open").addEventListener("click", function () {
+        renderManageList(data);
+        dialog.showModal();
+    });
+
+    document.querySelector("#skills-close").addEventListener("click", function () {
+        dialog.close();
+    });
+
+    goalType.addEventListener("change", function () {
+        targetField.hidden = goalType.value === "none";
+    });
+}
+
 // REDRAWS THE WHOLE DASHBOARD FROM THE CURRENT DATA. CALLED ON FIRST LOAD AND AGAIN AFTER EVERY CHANGE, SO THE SCREEN NEVER DRIFTS FROM WHAT'S STORED.
 function renderAll(data) {
     const sorted = getSkillsByPractice(data);
@@ -598,6 +702,8 @@ function renderAll(data) {
 
 // ENTRY POINT — RUNS ONCE THE DATA IS READY.
 initialData().then(function (data) {
+    setupSkillsDialog(data);
     renderAll(data);
     setupLogDialog(data);
+    setupSessionList(data);
 });

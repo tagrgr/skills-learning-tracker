@@ -26,7 +26,10 @@
             </div>
             
             <div class="right-head">
-                <button id="log-open" class="btn-primary" type="button">+ Log Session</button>
+                <button class="btn-ghost" id="skills-open" type="button">Skills</button>
+
+                <button class="btn-primary" id="log-open" type="button">+ Log Session</button>
+                
                 <a class="avatar" href="#">TG</a>
             </div>
         </div>
@@ -126,6 +129,47 @@
                 <button type="submit" class="btn-primary">Save session</button>
             </div>
         </form>
+    </dialog>
+
+    <dialog id="skills-dialog">
+        <div class="skills-manager">
+            <h2 class="log-title">Manage skills</h2>
+
+            <ul class="manage-list"></ul>
+
+            <form class="skill-form">
+                <label class="field">
+                    <span class="field-label">Name</span>
+                    <input class="field-input" id="skill-name" type="text" placeholder="e.g. Portuguese" required>
+                </label>
+
+                <label class="field">
+                    <span class="field-label">Colour</span>
+                    <input class="field-input" id="skill-color" type="color" value="#059669">
+                </label>
+
+                <label class="field">
+                    <span class="field-label">Goal type</span>
+                    <select class="field-input" id="skill-goal-type">
+                        <option value="none">No goal</option>
+                        <option value="weekly">Hours per week</option>
+                        <option value="total">Total hours</option>
+                    </select>
+                </label>
+
+                <label class="field" id="skill-target-field" hidden>
+                    <span class="field-label">Target hours</span>
+                    <input class="field-input" id="skill-target" type="number" min="1" value="5">
+                </label>
+
+                <p class="skill-error" hidden></p>
+
+                <div class="log-actions">
+                    <button type="button" class="btn-ghost" id="skills-close">Close</button>
+                    <button type="submit" class="btn-primary" id="skill-submit">Add skill</button>
+                </div>
+            </form>
+        </div>
     </dialog>
 
 </body>
